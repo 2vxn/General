@@ -1,0 +1,46 @@
+local UIS = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local player = game:GetService("Players").LocalPlayer
+
+local noclip = false
+local raycastParams = RaycastParams.new()
+
+UIS.InputBegan:Connect(function(input, processed)
+	if not processed and input.KeyCode == Enum.KeyCode.X then
+		noclip = not noclip
+	end
+end)
+
+RunService.Stepped:Connect(function()
+	if not noclip then return end
+
+	local character = player.Character
+	if not character then return end
+
+	local rootPart = character:FindFirstChild("HumanoidRootPart")
+	if not rootPart then return end
+
+	raycastParams.FilterDescendantsInstances = {character}
+	raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+
+	local raycastResult = workspace:Raycast(rootPart.Position, Vector3.new(0, -3.1, 0), raycastParams)
+
+	if raycastResult then
+		local currentVelocity = rootPart.AssemblyLinearVelocity
+		if currentVelocity.Y < 0 then
+			rootPart.AssemblyLinearVelocity = Vector3.new(currentVelocity.X, 0, currentVelocity.Z)
+		end
+	end
+
+	for _, part in ipairs(character:GetChildren()) do
+		if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
+			part.CanCollide = false
+		elseif part:IsA("Model") then
+			for _, subPart in ipairs(part:GetDescendants()) do
+				if subPart:IsA("BasePart") then
+					subPart.CanCollide = false
+				end
+			end
+		end
+	end
+end)
