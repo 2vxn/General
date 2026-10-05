@@ -1,0 +1,66 @@
+local UIS = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
+
+local player = Players.LocalPlayer
+local fly = false
+local speed = 50
+
+local attachment, linearVelocity
+
+local function updateFlyPhysics(root)
+	if fly then
+		if not attachment or not attachment.Parent then
+			attachment = Instance.new("Attachment")
+			attachment.Parent = root
+		end
+		if not linearVelocity or not linearVelocity.Parent then
+			linearVelocity = Instance.new("LinearVelocity")
+			linearVelocity.MaxForce = math.huge
+			linearVelocity.VelocityConstraintMode = Enum.VelocityConstraintMode.Vector
+			linearVelocity.Attachment0 = attachment
+			linearVelocity.Parent = root
+		end
+	else
+		if linearVelocity then linearVelocity:Destroy() end
+		if attachment then attachment:Destroy() end
+	end
+end
+
+UIS.InputBegan:Connect(function(input, processed)
+	if processed then return end
+	if input.KeyCode == Enum.KeyCode.X then
+		fly = not fly
+		local character = player.Character
+		local root = character and character:FindFirstChild("HumanoidRootPart")
+		if root then updateFlyPhysics(root) end
+	end
+end)
+
+RunService.RenderStepped:Connect(function()
+	if not fly then return end
+
+	local character = player.Character
+	local root = character and character:FindFirstChild("HumanoidRootPart")
+	if not root then return end
+	
+	if not linearVelocity or not linearVelocity.Parent then 
+		updateFlyPhysics(root)
+	end
+
+	local camera = workspace.CurrentCamera
+	local direction = Vector3.zero
+
+	if UIS:IsKeyDown(Enum.KeyCode.W) then direction += camera.CFrame.LookVector end
+	if UIS:IsKeyDown(Enum.KeyCode.S) then direction -= camera.CFrame.LookVector end
+	if UIS:IsKeyDown(Enum.KeyCode.D) then direction += camera.CFrame.RightVector end
+	if UIS:IsKeyDown(Enum.KeyCode.A) then direction -= camera.CFrame.RightVector end
+	if UIS:IsKeyDown(Enum.KeyCode.Space) then direction += Vector3.yAxis end
+	if UIS:IsKeyDown(Enum.KeyCode.LeftControl) then direction -= Vector3.yAxis end
+
+	if direction.Magnitude > 0 then
+		direction = direction.Unit
+	end
+
+	linearVelocity.VectorVelocity = direction * speed
+end)
