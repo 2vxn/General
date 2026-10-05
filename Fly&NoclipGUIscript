@@ -1,0 +1,176 @@
+local UIS = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
+
+local player = Players.LocalPlayer
+local pGui = player:WaitForChild("PlayerGui")
+local active = false
+local speed = 50
+
+local attachment, linearVelocity
+local raycastParams = RaycastParams.new()
+
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "FlyNoclipGui"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = pGui
+
+local mainFrame = Instance.new("Frame")
+mainFrame.Size = UDim2.new(0, 200, 0, 90)
+mainFrame.Position = UDim2.new(0, 20, 1, -110)
+mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+mainFrame.BorderSizePixel = 0
+mainFrame.Parent = screenGui
+
+local uiCorner = Instance.new("UICorner")
+uiCorner.CornerRadius = UDim.new(0, 8)
+uiCorner.Parent = mainFrame
+
+local statusLabel = Instance.new("TextLabel")
+statusLabel.Size = UDim2.new(1, 0, 0, 35)
+statusLabel.BackgroundTransparency = 1
+statusLabel.Text = "STATUS: OFF [X]"
+statusLabel.TextColor3 = Color3.fromRGB(255, 75, 75)
+statusLabel.Font = Enum.Font.SourceSansBold
+statusLabel.TextSize = 18
+statusLabel.Parent = mainFrame
+
+local speedLabel = Instance.new("TextLabel")
+speedLabel.Size = UDim2.new(1, 0, 0, 25)
+speedLabel.Position = UDim2.new(0, 0, 0, 35)
+speedLabel.BackgroundTransparency = 1
+speedLabel.Text = "SPEED: " .. speed
+speedLabel.TextColor3 = Color3.fromRGB(240, 240, 240)
+speedLabel.Font = Enum.Font.SourceSans
+speedLabel.TextSize = 14
+speedLabel.Parent = mainFrame
+
+local sliderFrame = Instance.new("Frame")
+sliderFrame.Size = UDim2.new(0, 160, 0, 6)
+sliderFrame.Position = UDim2.new(0.5, -80, 0, 65)
+sliderFrame.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+sliderFrame.BorderSizePixel = 0
+sliderFrame.Parent = mainFrame
+
+local sliderButton = Instance.new("ImageButton")
+sliderButton.Size = UDim2.new(0, 14, 0, 14)
+sliderButton.Position = UDim2.new(0.2, -7, 0.5, -7)
+sliderButton.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+sliderButton.Parent = sliderFrame
+
+local btnCorner = Instance.new("UICorner")
+btnCorner.CornerRadius = UDim.new(1, 0)
+btnCorner.Parent = sliderButton
+
+local dragging = false
+sliderButton.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+		dragging = true
+	end
+end)
+
+UIS.InputEnded:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+		dragging = false
+	end
+end)
+
+UIS.InputChanged:Connect(function(input)
+	if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+		local relativeX = input.Position.X - sliderFrame.AbsolutePosition.X
+		local percentage = math.clamp(relativeX / sliderFrame.AbsoluteSize.X, 0, 1)
+		sliderButton.Position = UDim2.new(percentage, -7, 0.5, -7)
+		speed = math.round(10 + (percentage * 240))
+		speedLabel.Text = "SPEED: " .. speed
+	end
+end)
+
+local function updatePhysics(root, character)
+	if active then
+		statusLabel.Text = "STATUS: ON [X]"
+		statusLabel.TextColor3 = Color3.fromRGB(75, 255, 75)
+		
+		if not attachment or not attachment.Parent then
+			attachment = Instance.new("Attachment")
+			attachment.Parent = root
+		end
+		if not linearVelocity or not linearVelocity.Parent then
+			linearVelocity = Instance.new("LinearVelocity")
+			linearVelocity.MaxForce = math.huge
+			linearVelocity.VelocityConstraintMode = Enum.VelocityConstraintMode.Vector
+			linearVelocity.Attachment0 = attachment
+			linearVelocity.Parent = root
+		end
+	else
+		statusLabel.Text = "STATUS: OFF [X]"
+		statusLabel.TextColor3 = Color3.fromRGB(255, 75, 75)
+		
+		if linearVelocity then linearVelocity:Destroy() end
+		if attachment then attachment:Destroy() end
+		
+		for _, part in ipairs(character:GetDescendants()) do
+			if part:IsA("BasePart") then
+				part.CanCollide = true
+			end
+		end
+	end
+end
+
+UIS.InputBegan:Connect(function(input, processed)
+	if processed then return end
+	if input.KeyCode == Enum.KeyCode.X then
+		active = not active
+		local character = player.Character
+		local root = character and character:FindFirstChild("HumanoidRootPart")
+		if root then updatePhysics(root, character) end
+	end
+end)
+
+RunService.RenderStepped:Connect(function()
+	if not active then return end
+
+	local character = player.Character
+	local root = character and character:FindFirstChild("HumanoidRootPart")
+	if not root then return end
+	
+	if not linearVelocity or not linearVelocity.Parent then 
+		updatePhysics(root, character)
+	end
+
+	local camera = workspace.CurrentCamera
+	local direction = Vector3.zero
+
+	if UIS:IsKeyDown(Enum.KeyCode.W) then direction += camera.CFrame.LookVector end
+	if UIS:IsKeyDown(Enum.KeyCode.S) then direction -= camera.CFrame.LookVector end
+	if UIS:IsKeyDown(Enum.KeyCode.D) then direction += camera.CFrame.RightVector end
+	if UIS:IsKeyDown(Enum.KeyCode.A) then direction -= camera.CFrame.RightVector end
+	if UIS:IsKeyDown(Enum.KeyCode.Space) then direction += Vector3.yAxis end
+	if UIS:IsKeyDown(Enum.KeyCode.LeftControl) then direction -= Vector3.yAxis end
+
+	if direction.Magnitude > 0 then
+		direction = direction.Unit
+	end
+
+	raycastParams.FilterDescendantsInstances = {character}
+	raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+
+	local raycastResult = workspace:Raycast(root.Position, Vector3.new(0, -3.1, 0), raycastParams)
+
+	if raycastResult and direction.Y <= 0 and not UIS:IsKeyDown(Enum.KeyCode.LeftControl) then
+		linearVelocity.VectorVelocity = Vector3.new(direction.X * speed, 0, direction.Z * speed)
+	else
+		linearVelocity.VectorVelocity = direction * speed
+	end
+
+	for _, part in ipairs(character:GetChildren()) do
+		if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
+			part.CanCollide = false
+		elseif part:IsA("Model") then
+			for _, subPart in ipairs(part:GetDescendants()) do
+				if subPart:IsA("BasePart") then
+					subPart.CanCollide = false
+				end
+			end
+		end
+	end
+end)
