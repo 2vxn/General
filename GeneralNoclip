@@ -1,1 +1,30 @@
+local UIS = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local player = game:GetService("Players").LocalPlayer
 
+local noclip = false
+
+UIS.InputBegan:Connect(function(input, processed)
+	if not processed and input.KeyCode == Enum.KeyCode.X then
+		noclip = not noclip
+	end
+end)
+
+RunService.Stepped:Connect(function()
+	if not noclip then return end
+
+	local character = player.Character
+	if not character then return end
+
+	for _, part in ipairs(character:GetChildren()) do
+		if part:IsA("BasePart") then
+			part.CanCollide = false
+		elseif part:IsA("Model") then
+			for _, subPart in ipairs(part:GetDescendants()) do
+				if subPart:IsA("BasePart") then
+					subPart.CanCollide = false
+				end
+			end
+		end
+	end
+end)
