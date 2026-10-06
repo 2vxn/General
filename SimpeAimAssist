@@ -1,0 +1,81 @@
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+
+local LocalPlayer = Players.LocalPlayer
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+
+local FOVSettings = {
+	-- Aim Assist FOV
+	AimAssistCircleEnabled = true,
+	AimAssistFOV = 120,
+	AimAssistColor = Color3.fromRGB(255, 255, 255),
+	AimAssistTransparency = 0.6,
+	
+	-- Silent Aim FOV
+	SilentAimCircleEnabled = true,
+	SilentAimFOV = 35,
+	SilentAimColor = Color3.fromRGB(255, 50, 50),
+	SilentAimTransparency = 0.4
+}
+
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "FOVCircleGui"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = PlayerGui
+
+local function CreateFOVCircle(name, radius, color, transparency)
+	local diameter = radius * 2
+
+	local circleFrame = Instance.new("Frame")
+	circleFrame.Name = name
+	circleFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+	circleFrame.Position = UDim2.fromScale(0.5, 0.5) -- UDim2.new(0.5, 0, 0.5, 0) 대신 간결한 생성자 사용
+	circleFrame.Size = UDim2.fromOffset(diameter, diameter) -- Offset 전용 생성자 사용
+	circleFrame.BackgroundTransparency = 1
+	circleFrame.Parent = screenGui
+
+	local uiStroke = Instance.new("UIStroke")
+	uiStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	uiStroke.Color = color
+	uiStroke.Thickness = 1.5
+	uiStroke.Transparency = transparency
+	uiStroke.Parent = circleFrame
+
+	local uiCorner = Instance.new("UICorner")
+	uiCorner.CornerRadius = UDim.new(1, 0)
+	uiCorner.Parent = circleFrame
+
+	return circleFrame
+end
+
+local shouldShow = not (FOVSettings.IsMobileOnly and not isMobile)
+
+local aimAssistCircle = nil
+local silentAimCircle = nil
+
+if shouldShow then
+	if FOVSettings.AimAssistCircleEnabled then
+		aimAssistCircle = CreateFOVCircle("AimAssistCircle", FOVSettings.AimAssistFOV, FOVSettings.AimAssistColor, FOVSettings.AimAssistTransparency)
+	end
+
+	if FOVSettings.SilentAimCircleEnabled then
+		silentAimCircle = CreateFOVCircle("SilentAimCircle", FOVSettings.SilentAimFOV, FOVSettings.SilentAimColor, FOVSettings.SilentAimTransparency)
+	end
+end
+
+local FOVModule = {}
+
+function FOVModule.UpdateFOV(newAimAssistFOV, newSilentAimFOV)
+	if aimAssistCircle and newAimAssistFOV then
+		FOVSettings.AimAssistFOV = newAimAssistFOV
+		local diameter = newAimAssistFOV * 2
+		aimAssistCircle.Size = UDim2.fromOffset(diameter, diameter)
+	end
+	
+	if silentAimCircle and newSilentAimFOV then
+		FOVSettings.SilentAimFOV = newSilentAimFOV
+		local diameter = newSilentAimFOV * 2
+		silentAimCircle.Size = UDim2.fromOffset(diameter, diameter)
+	end
+end
